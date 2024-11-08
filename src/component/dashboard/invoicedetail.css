@@ -1,0 +1,184 @@
+/* General Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f7fa;
+    color: #333;
+    line-height: 1.6;
+    padding: 20px;
+    overflow-x: hidden; /* Prevent horizontal scrollbar */
+  }
+  
+  /* Invoice Top Header */
+  .invoice-top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0e9ebb;
+    color: white;
+    padding: 20px;
+    border-radius: 8px;
+  }
+  
+  .invoice-top-header h1 {
+    font-size: 1.8em;
+  }
+  
+  .print-btn {
+    background-color: #ff6b81;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    font-size: 1em;
+    border-radius: 5px;
+    cursor: pointer;
+    height: 50px;
+    width: 120px;
+  }
+  
+  .print-btn:hover {
+    background-color: #ff4f6d;
+  }
+  
+  .invoice-wrapper {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+    margin-top: 20px;
+    overflow: hidden; /* Hide overflow to avoid double scrollbars */
+    max-width: 100%; /* Ensure it stays within the screen width */
+  }
+  
+  /* Invoice Header */
+  .invoice-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  
+  .company-detail,
+  .customer-detail {
+    width: 48%;
+
+  }
+  
+  .company-logo {
+    width: 100px;
+    height: auto;
+    border-radius: 50%;
+    margin-bottom: 10px;
+  }
+  
+  .company-detail p,
+  .customer-detail p {
+    margin: 5px 0;
+  }
+  
+  .cName {
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  
+  /* Product Table */
+  .product-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    table-layout: fixed; /* Prevent horizontal overflow */
+  }
+  
+  .product-table th,
+  .product-table td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    word-wrap: break-word; /* Prevent long text from causing horizontal scroll */
+  }
+  
+  .product-table th {
+    background-color: #3a6ee8;
+    color: white;
+  }
+  
+  .product-table td {
+    font-size: 1em;
+  }
+  
+  tfoot td {
+    font-weight: bold;
+    background-color: #f1f1f1;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .invoice-wrapper {
+      padding: 20px;
+    }
+  
+    .invoice-header {
+      flex-direction: column;
+      align-items: center;
+    }
+  
+    .company-detail,
+    .customer-detail {
+      width: 100%;
+      text-align: center;
+    }
+  
+    .product-table {
+      font-size: 0.9em;
+    }
+  
+    .company-logo {
+      width: 80px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .invoice-top-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  
+    .invoice-top-header h1 {
+      font-size: 1.5em;
+    }
+  
+    .print-btn {
+      width: 100%;
+      margin-top: 10px;
+    }
+  
+    .invoice-header {
+      flex-direction: column;
+      align-items: center;
+    }
+  
+    .company-detail,
+    .customer-detail {
+      width: 100%;
+      text-align: center;
+    }
+  
+    .product-table th, .product-table td {
+      padding: 8px;
+    }
+  }
+  
+  .customer{
+    margin-left: 150px;
+  }
+  
+  .customer p{
+    color: #333;
+  }
+  .company-detail p{
+    color: #333;
+  }

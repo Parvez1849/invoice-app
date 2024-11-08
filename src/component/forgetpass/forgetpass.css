@@ -1,0 +1,110 @@
+/* General Styles */
+.forgot-password-wrapper {
+  height: 100vh;
+  width: 100%;
+  background-color: #282c34;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.forgot-password-container {
+  height: 600px;
+  width: 60%;
+  background-color: #eee;
+  box-shadow: 5px 5px 10px #eee;
+  display: flex;
+  border-radius: 10px;
+}
+
+.forgot-pass {
+  height: 600px;
+  width: 50%;
+  padding: 20px;
+}
+
+.forgot-left {
+  background-image: url("../../assets/invoice.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.forgot-right {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.forgot-password-heading {
+  font-size: 25px;
+}
+
+.forgot-password-input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 5px;
+  border-width: 1px;
+}
+
+.forgot-password-btn {
+  border: none;
+  background-color: #007bff;
+  color: white;
+  font-size: 15px;
+}
+
+.forgot-password-btn:hover {
+  background-color: rgb(117, 109, 113);
+  transition: 0.5s;
+  cursor: pointer;
+}
+
+.forgot-password-link {
+  font-size: 18px;
+  margin-top: 10px;
+  text-decoration: none;
+  color: #007bff;
+  padding-bottom: 10px;
+}
+
+.forgot-password-link:hover {
+  text-decoration: underline;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .forgot-password-container {
+    flex-direction: column;
+    width: 90%;
+    height: auto;
+  }
+
+  .forgot-pass {
+    width: 100%;
+    height: auto;
+    padding: 10px;
+  }
+
+  .forgot-password-heading {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .forgot-left {
+    display: none; /* Hide the background image on mobile for better readability */
+  }
+
+  .forgot-password-input {
+    width: 90%;
+    margin: 10px 0;
+  }
+
+  .forgot-password-btn {
+    width: 90%;
+  }
+}
+
+
+

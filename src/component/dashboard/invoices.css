@@ -1,0 +1,167 @@
+/* General Styles */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f4f7fc;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    padding: 20px;
+}
+
+h1, p {
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+/* Loading Spinner */
+.spinner {
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+}
+
+.spinner i {
+    font-size: 30px;
+    color: #333;
+}
+
+/* Invoice Box */
+.box {
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative; /* Ensure the buttons stay inside the box */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Invoice Text */
+.box p {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+/* Buttons */
+.button-container {
+    display: flex;
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 10px; /* Space between buttons */
+}
+
+.delete-btn, .view-btn {
+    background-color: #f44336;
+    color: white;
+    border: none;
+    padding: 6px 12px; /* Smaller padding for smaller buttons */
+    font-size: 14px; /* Smaller font size */
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    height: 25px;
+    width: 100px;
+}
+
+.view-btn {
+    background-color: #2196f3;
+}
+
+.delete-btn i, .view-btn i {
+    margin-right: 5px;
+}
+
+.delete-btn:hover {
+    background-color: #d32f2f;
+}
+
+.view-btn:hover {
+    background-color: #1976d2;
+}
+
+/* No Invoice Message */
+.no-invoice-wrapper {
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+}
+
+.no-invoice-wrapper p {
+    font-size: 20px;
+    color: #777;
+}
+
+.no-invoice-wrapper button {
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.no-invoice-wrapper button:hover {
+    background-color: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .box {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .box p {
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .button-container {
+        width: 100%; /* Ensure buttons align properly even on smaller screens */
+        justify-content: flex-start;
+    }
+
+    .delete-btn, .view-btn {
+        padding: 8px 12px;
+        margin: 5px 0;
+    }
+
+    .delete-btn i, .view-btn i {
+        margin-right: 5px;
+    }
+}
+
+@media (max-width: 480px) {
+    .box p {
+        font-size: 14px;
+    }
+
+    .delete-btn, .view-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+
+    .no-invoice-wrapper p {
+        font-size: 18px;
+    }
+}
+
+
+
+
