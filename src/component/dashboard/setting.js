@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { auth, db } from "../../firebase"; // storage ko hata diya
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { auth, db } from "../../firebase";
 import { updateProfile, updateEmail, updatePassword } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import "./setting.css";
@@ -7,11 +7,10 @@ import "./setting.css";
 const Setting = () => {
   const fileInputRef = useRef(null);
 
-  // Loading state
+  // States
   const [isLoading, setLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false); // Uploading state
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Edit state handlers
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [isEditingPassword, setIsEditingPassword] = useState(false);
@@ -28,32 +27,37 @@ const Setting = () => {
   const UPLOAD_PRESET = "invoice-app";
 
   useEffect(() => {
-    setTimeout(() => {
-      setLoading(false);
-    }, 1000);
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   // Update Company Name
   const updateCompanyName = async () => {
     try {
-      await updateProfile(auth.currentUser, { displayName });
-      localStorage.setItem("cName", displayName);
-      await updateDoc(doc(db, "users", localStorage.getItem("uid")), { displayName });
-      setIsEditingName(false);
+      const user = auth.currentUser;
+      if (user) {
+        await updateProfile(user, { displayName });
+        localStorage.setItem("cName", displayName);
+        await updateDoc(doc(db, "users", localStorage.getItem("uid")), { displayName });
+        setIsEditingName(false);
+        alert("Company name updated!");
+      }
     } catch (error) {
-      console.error("Error updating company name:", error.message);
+      alert("Error: " + error.message);
     }
   };
 
-  // File selection handler
+  // File selection
   const onSelectFile = (e) => {
-    if (e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-      setImageUrl(URL.createObjectURL(e.target.files[0]));
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      setImageUrl(URL.createObjectURL(selectedFile));
+      setIsEditingLogo(true);
     }
   };
 
-  // --- 🔥 LOGIC CHANGED: Firebase Storage ki jagah Cloudinary use kiya ---
+  // Update Logo to Cloudinary
   const updateLogo = async () => {
     if (!file) return;
 
@@ -63,7 +67,6 @@ const Setting = () => {
     formData.append('upload_preset', UPLOAD_PRESET);
 
     try {
-      // 1. Cloudinary upload call
       const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
         method: 'POST',
         body: formData,
@@ -73,41 +76,35 @@ const Setting = () => {
 
       if (data.secure_url) {
         const newPhotoURL = data.secure_url;
-
-        // 2. Auth profile update
         await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
-
-        // 3. Firestore update
         await updateDoc(doc(db, "users", localStorage.getItem("uid")), {
           photoURL: newPhotoURL
         });
 
-        // 4. Local Storage update
         localStorage.setItem("photoURL", newPhotoURL);
-        
         alert("Logo updated successfully!");
         setIsEditingLogo(false);
         setFile(null);
+        // Page reload to sync all components
         window.location.reload(); 
       } else {
         alert("Upload failed: " + (data.error?.message || "Unknown error"));
       }
     } catch (error) {
-      console.error("Error uploading to Cloudinary:", error);
+      console.error("Cloudinary Error:", error);
       alert("Something went wrong!");
     } finally {
       setIsUploading(false);
     }
   };
 
-  const cancelLogoEdit = () => {
+  const cancelLogoEdit = useCallback(() => {
     setFile(null);
     setIsEditingLogo(false);
-    window.location.reload();
-  };
+    setImageUrl(localStorage.getItem("photoURL") || "");
+  }, []);
 
   const handleEditLogoClick = () => {
-    setIsEditingLogo(true);
     fileInputRef.current.click();
   };
 
@@ -115,44 +112,52 @@ const Setting = () => {
     updateEmail(auth.currentUser, email)
       .then(() => {
         localStorage.setItem("email", email);
-        alert("Email updated successfully!");
+        alert("Email updated! Please re-login if required.");
         setIsEditingEmail(false);
       })
-      .catch((error) => {
-        alert("Error updating email: " + error.message);
-      });
+      .catch((error) => alert(error.message));
   };
 
   const updatePasswordHandler = () => {
+    if (password.length < 6) {
+        alert("Password should be at least 6 characters");
+        return;
+    }
     updatePassword(auth.currentUser, password)
       .then(() => {
         alert("Password updated successfully!");
         setIsEditingPassword(false);
+        setPassword("");
       })
-      .catch((error) => {
-        alert("Error updating password: " + error.message);
-      });
+      .catch((error) => alert(error.message));
   };
 
   if (isLoading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <i style={{ fontSize: "24px" }} className="fa-solid fa-spinner fa-spin"></i> Loading....
+        <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: "24px", marginRight: "10px" }}></i> 
+        Loading Settings...
       </div>
     );
   }
 
   return (
     <div className="settings-container">
-      <h1>Settings</h1>
+      <h1>Account Settings</h1>
       <div className="settings-wrapper">
+        
+        {/* Profile Image Section */}
         <div className="profile-section">
-          <img
-            onClick={handleEditLogoClick}
-            className="profile-pic"
-            alt="profile-pic"
-            src={imageUrl}
-          />
+          <div className="img-container">
+            <img
+              onClick={handleEditLogoClick}
+              className="profile-pic"
+              alt="profile-pic"
+              src={imageUrl}
+            />
+            {isUploading && <div className="loader-overlay"><i className="fa-solid fa-spinner fa-spin"></i></div>}
+          </div>
+          
           <input
             onChange={onSelectFile}
             style={{ display: "none" }}
@@ -160,47 +165,50 @@ const Setting = () => {
             ref={fileInputRef}
             accept="image/*"
           />
-          {isEditingLogo && file && (
-            <div>
+
+          {isEditingLogo && file ? (
+            <div className="action-btns">
               <button className="update-btn" onClick={updateLogo} disabled={isUploading}>
-                {isUploading ? "Saving..." : "Save"}
+                {isUploading ? "Uploading..." : "Save Logo"}
               </button>
               <button className="cancel-btn" onClick={cancelLogoEdit} disabled={isUploading}>
                 Cancel
               </button>
             </div>
-          )}
-          {!file && (
+          ) : (
             <button className="edit-btn" onClick={handleEditLogoClick}>
-              {isEditingLogo ? "Select logo" : "Edit Profile Logo"}
+              Change Business Logo
             </button>
           )}
         </div>
 
+        {/* Company Name */}
         <div className="input-group">
-          <label>Company Name</label>
+          <label>Business / Company Name</label>
           {isEditingName ? (
-            <>
+            <div className="edit-mode">
               <input
                 onChange={(e) => setDisplayName(e.target.value)}
                 type="text"
                 value={displayName}
+                autoFocus
               />
               <button className="update-btn" onClick={updateCompanyName}>Save</button>
               <button className="cancel-btn" onClick={() => setIsEditingName(false)}>Cancel</button>
-            </>
+            </div>
           ) : (
-            <>
-              <p>{displayName}</p>
+            <div className="view-mode">
+              <p>{displayName || "Not Set"}</p>
               <button className="edit-btn" onClick={() => setIsEditingName(true)}>Edit</button>
-            </>
+            </div>
           )}
         </div>
 
+        {/* Email */}
         <div className="input-group">
-          <label>Email</label>
+          <label>Email Address</label>
           {isEditingEmail ? (
-            <>
+            <div className="edit-mode">
               <input
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
@@ -208,34 +216,37 @@ const Setting = () => {
               />
               <button className="update-btn" onClick={updateEmailHandler}>Save</button>
               <button className="cancel-btn" onClick={() => setIsEditingEmail(false)}>Cancel</button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="view-mode">
               <p>{email}</p>
               <button className="edit-btn" onClick={() => setIsEditingEmail(true)}>Edit</button>
-            </>
+            </div>
           )}
         </div>
 
+        {/* Password */}
         <div className="input-group">
-          <label>New Password</label>
+          <label>Update Password</label>
           {isEditingPassword ? (
-            <>
+            <div className="edit-mode">
               <input
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
+                placeholder="Enter new password"
                 value={password}
               />
-              <button className="update-btn" onClick={updatePasswordHandler}>Save</button>
+              <button className="update-btn" onClick={updatePasswordHandler}>Update</button>
               <button className="cancel-btn" onClick={() => setIsEditingPassword(false)}>Cancel</button>
-            </>
+            </div>
           ) : (
-            <>
-              <p>********</p>
+            <div className="view-mode">
+              <p>••••••••</p>
               <button className="edit-btn" onClick={() => setIsEditingPassword(true)}>Edit</button>
-            </>
+            </div>
           )}
         </div>
+
       </div>
     </div>
   );
