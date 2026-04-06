@@ -1,6 +1,6 @@
-import { Chart } from "chart.js/auto"; // registerables hata diya kyunki ye unused tha
+import { Chart } from "chart.js/auto"; 
 import { collection, getDocs, query, where } from "firebase/firestore";
-import React, { useEffect, useState, useRef, useCallback } from "react"; // useCallback add kiya
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import "./home.css";
@@ -16,7 +16,6 @@ const Home = () => {
         if (chartRef.current) {
             chartRef.current.destroy();
         }
-
         const ctx = document.getElementById('myChart');
         chartRef.current = new Chart(ctx, {
             type: 'bar',
@@ -31,9 +30,7 @@ const Home = () => {
                 }]
             },
             options: {
-                scales: {
-                    y: { beginAtZero: true }
-                },
+                scales: { y: { beginAtZero: true } },
                 responsive: true,
                 maintainAspectRatio: false,
             }
@@ -45,7 +42,6 @@ const Home = () => {
             "Jan": 0, "Feb": 0, "Mar": 0, "Apr": 0, "May": 0, "Jun": 0,
             "Jul": 0, "Aug": 0, "Sep": 0, "Oct": 0, "Nov": 0, "Dec": 0
         };
-
         data.forEach(d => {
             const date = new Date(d.date.seconds * 1000);
             if (date.getFullYear() === new Date().getFullYear()) {
@@ -53,16 +49,13 @@ const Home = () => {
                 chartData[month] += d.total;
             }
         });
-
         createChart(chartData);
     }, [createChart]);
 
-    const getOverAllTotal = (invoiceList) => {
+    const calculateTotals = useCallback((invoiceList) => {
         const totalAmount = invoiceList.reduce((acc, data) => acc + data.total, 0);
         setTotal(totalAmount);
-    };
 
-    const getOverMonthsTotal = (invoiceList) => {
         const currentMonth = new Date().getMonth();
         const monthlyTotal = invoiceList.reduce((acc, data) => {
             if (new Date(data.date.seconds * 1000).getMonth() === currentMonth) {
@@ -71,11 +64,6 @@ const Home = () => {
             return acc;
         }, 0);
         setTotalMonthCollection(monthlyTotal);
-    };
-
-    const calculateTotals = useCallback((invoiceList) => {
-        getOverAllTotal(invoiceList);
-        getOverMonthsTotal(invoiceList);
         generateMonthWiseCollectionData(invoiceList);
     }, [generateMonthWiseCollectionData]);
 
@@ -83,11 +71,7 @@ const Home = () => {
         try {
             const q = query(collection(db, "invoices"), where("uid", "==", localStorage.getItem("uid")));
             const querySnapshot = await getDocs(q);
-            const data = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
+            const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             const sortedData = data.sort((a, b) => b.date.seconds - a.date.seconds);
             setInvoices(sortedData);
             calculateTotals(sortedData);
