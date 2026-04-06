@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { storage, auth, db } from "../../firebase";
-import { ref, getDownloadURL, uploadBytesResumable } from "firebase/storage";
+import { auth, db } from "../../firebase"; // storage ko hata diya
 import { updateProfile, updateEmail, updatePassword } from "firebase/auth";
 import { doc, updateDoc } from "firebase/firestore";
 import "./setting.css";
@@ -9,7 +8,8 @@ const Setting = () => {
   const fileInputRef = useRef(null);
 
   // Loading state
-  const [isLoading, setLoading] = useState(true); // Initially true to show spinner on load
+  const [isLoading, setLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false); // Uploading state
 
   // Edit state handlers
   const [isEditingName, setIsEditingName] = useState(false);
@@ -23,12 +23,14 @@ const Setting = () => {
   const [displayName, setDisplayName] = useState(localStorage.getItem("cName") || "");
   const [imageUrl, setImageUrl] = useState(localStorage.getItem("photoURL") || "");
 
-  // Simulate data fetching or other setup before loading is complete
+  // Cloudinary Details
+  const CLOUD_NAME = "dhvdlw4s6";
+  const UPLOAD_PRESET = "invoice-app";
+
   useEffect(() => {
-    // Simulate async data fetching or other setup
     setTimeout(() => {
-      setLoading(false); // Simulate that the page has loaded
-    }, 1000); // Adjust delay as per the actual loading time
+      setLoading(false);
+    }, 1000);
   }, []);
 
   // Update Company Name
@@ -37,7 +39,7 @@ const Setting = () => {
       await updateProfile(auth.currentUser, { displayName });
       localStorage.setItem("cName", displayName);
       await updateDoc(doc(db, "users", localStorage.getItem("uid")), { displayName });
-      setIsEditingName(false); // Exit editing mode
+      setIsEditingName(false);
     } catch (error) {
       console.error("Error updating company name:", error.message);
     }
@@ -51,59 +53,81 @@ const Setting = () => {
     }
   };
 
-  // Update Logo/Profile Picture
+  // --- 🔥 LOGIC CHANGED: Firebase Storage ki jagah Cloudinary use kiya ---
   const updateLogo = async () => {
-    if (!file) return; // Ensure a file is selected
+    if (!file) return;
 
-    const fileRef = ref(storage, `logos/${auth.currentUser.uid}/${file.name}`);
-    const uploadTask = uploadBytesResumable(fileRef, file);
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
 
-    uploadTask.on(
-      "state_changed",
-      null,
-      (error) => console.error("Error uploading file:", error),
-      async () => {
-        const downloadedUrl = await getDownloadURL(fileRef);
-        await updateProfile(auth.currentUser, { photoURL: downloadedUrl });
-        localStorage.setItem("photoURL", downloadedUrl);
-        setIsEditingLogo(false); // Exit editing mode
-        window.location.reload(); // Reload after successful update
+    try {
+      // 1. Cloudinary upload call
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.secure_url) {
+        const newPhotoURL = data.secure_url;
+
+        // 2. Auth profile update
+        await updateProfile(auth.currentUser, { photoURL: newPhotoURL });
+
+        // 3. Firestore update
+        await updateDoc(doc(db, "users", localStorage.getItem("uid")), {
+          photoURL: newPhotoURL
+        });
+
+        // 4. Local Storage update
+        localStorage.setItem("photoURL", newPhotoURL);
+        
+        alert("Logo updated successfully!");
+        setIsEditingLogo(false);
+        setFile(null);
+        window.location.reload(); 
+      } else {
+        alert("Upload failed: " + (data.error?.message || "Unknown error"));
       }
-    );
+    } catch (error) {
+      console.error("Error uploading to Cloudinary:", error);
+      alert("Something went wrong!");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  // Cancel Logo Editing and reload the page
   const cancelLogoEdit = () => {
     setFile(null);
-    setIsEditingLogo(false); // Exit editing mode
-    window.location.reload(); // Reload the page
+    setIsEditingLogo(false);
+    window.location.reload();
   };
 
-  // Handle clicking "Edit Profile Picture" to automatically open file input
   const handleEditLogoClick = () => {
     setIsEditingLogo(true);
-    fileInputRef.current.click(); // Open file input dialog automatically
+    fileInputRef.current.click();
   };
 
-  // Update Email
   const updateEmailHandler = () => {
     updateEmail(auth.currentUser, email)
       .then(() => {
         localStorage.setItem("email", email);
         alert("Email updated successfully!");
-        setIsEditingEmail(false); // Exit editing mode
+        setIsEditingEmail(false);
       })
       .catch((error) => {
         alert("Error updating email: " + error.message);
       });
   };
 
-  // Update Password
   const updatePasswordHandler = () => {
     updatePassword(auth.currentUser, password)
       .then(() => {
         alert("Password updated successfully!");
-        setIsEditingPassword(false); // Exit editing mode
+        setIsEditingPassword(false);
       })
       .catch((error) => {
         alert("Error updating password: " + error.message);
@@ -122,7 +146,6 @@ const Setting = () => {
     <div className="settings-container">
       <h1>Settings</h1>
       <div className="settings-wrapper">
-        {/* Profile Picture Section */}
         <div className="profile-section">
           <img
             onClick={handleEditLogoClick}
@@ -135,13 +158,14 @@ const Setting = () => {
             style={{ display: "none" }}
             type="file"
             ref={fileInputRef}
+            accept="image/*"
           />
           {isEditingLogo && file && (
             <div>
-              <button className="update-btn" onClick={updateLogo}>
-                Save
+              <button className="update-btn" onClick={updateLogo} disabled={isUploading}>
+                {isUploading ? "Saving..." : "Save"}
               </button>
-              <button className="cancel-btn" onClick={cancelLogoEdit}>
+              <button className="cancel-btn" onClick={cancelLogoEdit} disabled={isUploading}>
                 Cancel
               </button>
             </div>
@@ -153,7 +177,6 @@ const Setting = () => {
           )}
         </div>
 
-        {/* Company Name */}
         <div className="input-group">
           <label>Company Name</label>
           {isEditingName ? (
@@ -161,27 +184,19 @@ const Setting = () => {
               <input
                 onChange={(e) => setDisplayName(e.target.value)}
                 type="text"
-                placeholder="Company Name"
                 value={displayName}
               />
-              <button className="update-btn" onClick={updateCompanyName}>
-                Save
-              </button>
-              <button className="cancel-btn" onClick={() => setIsEditingName(false)}>
-                Cancel
-              </button>
+              <button className="update-btn" onClick={updateCompanyName}>Save</button>
+              <button className="cancel-btn" onClick={() => setIsEditingName(false)}>Cancel</button>
             </>
           ) : (
             <>
               <p>{displayName}</p>
-              <button className="edit-btn" onClick={() => setIsEditingName(true)}>
-                Edit
-              </button>
+              <button className="edit-btn" onClick={() => setIsEditingName(true)}>Edit</button>
             </>
           )}
         </div>
 
-        {/* Update Email */}
         <div className="input-group">
           <label>Email</label>
           {isEditingEmail ? (
@@ -189,27 +204,19 @@ const Setting = () => {
               <input
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
-                placeholder="Email"
                 value={email}
               />
-              <button className="update-btn" onClick={updateEmailHandler}>
-                Save
-              </button>
-              <button className="cancel-btn" onClick={() => setIsEditingEmail(false)}>
-                Cancel
-              </button>
+              <button className="update-btn" onClick={updateEmailHandler}>Save</button>
+              <button className="cancel-btn" onClick={() => setIsEditingEmail(false)}>Cancel</button>
             </>
           ) : (
             <>
               <p>{email}</p>
-              <button className="edit-btn" onClick={() => setIsEditingEmail(true)}>
-                Edit
-              </button>
+              <button className="edit-btn" onClick={() => setIsEditingEmail(true)}>Edit</button>
             </>
           )}
         </div>
 
-        {/* Update Password */}
         <div className="input-group">
           <label>New Password</label>
           {isEditingPassword ? (
@@ -217,22 +224,15 @@ const Setting = () => {
               <input
                 onChange={(e) => setPassword(e.target.value)}
                 type="password"
-                placeholder="New Password"
                 value={password}
               />
-              <button className="update-btn" onClick={updatePasswordHandler}>
-                Save
-              </button>
-              <button className="cancel-btn" onClick={() => setIsEditingPassword(false)}>
-                Cancel
-              </button>
+              <button className="update-btn" onClick={updatePasswordHandler}>Save</button>
+              <button className="cancel-btn" onClick={() => setIsEditingPassword(false)}>Cancel</button>
             </>
           ) : (
             <>
               <p>********</p>
-              <button className="edit-btn" onClick={() => setIsEditingPassword(true)}>
-                Edit
-              </button>
+              <button className="edit-btn" onClick={() => setIsEditingPassword(true)}>Edit</button>
             </>
           )}
         </div>
