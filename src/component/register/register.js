@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import "./register.css";
 import { Link, useNavigate } from "react-router-dom";
-import { auth, storage, db } from "../../firebase";
+import { auth, db } from "../../firebase"; // storage ko hata diya kyunki ab zarurat nahi
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
-import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { doc, setDoc } from "firebase/firestore";
 
 const Register = () => {
@@ -20,6 +19,10 @@ const Register = () => {
 
   const navigate = useNavigate();
 
+  // Cloudinary Details
+  const CLOUD_NAME = "dhvdlw4s6";
+  const UPLOAD_PRESET = "invoice-app";
+
   const onSelectFile = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -28,19 +31,37 @@ const Register = () => {
     }
   };
 
-  const uploadFileAndGetURL = async (user) => {
-    const date = new Date().getTime();
-    const storageRef = ref(storage, `${displayName}_${date}`);
+  // --- Naya Cloudinary Upload Function ---
+  const uploadToCloudinary = async (user) => {
+    if (!file) return null;
 
-    const uploadTask = await uploadBytesResumable(storageRef, file);
-    const downloadUrl = await getDownloadURL(uploadTask.ref);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
 
-    await updateProfile(user, {
-      displayName,
-      photoURL: downloadUrl,
-    });
+    try {
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
 
-    return downloadUrl;
+      const data = await response.json();
+
+      if (!data.secure_url) {
+        throw new Error(data.error?.message || "Upload failed");
+      }
+
+      // Firebase Profile update karein naye URL ke saath
+      await updateProfile(user, {
+        displayName,
+        photoURL: data.secure_url,
+      });
+
+      return data.secure_url;
+    } catch (error) {
+      console.error("Cloudinary Error:", error);
+      throw error;
+    }
   };
 
   const saveUserData = async (user, photoURL) => {
@@ -58,25 +79,24 @@ const Register = () => {
   };
 
   const checkEmailVerification = async () => {
+    if (!auth.currentUser) return;
     await auth.currentUser.reload();
     if (auth.currentUser.emailVerified) {
       setIsVerified(true);
       setErrorMessage("Email verified! You will be logged in automatically.");
       
-      // Auto-login: navigate to the dashboard or any protected route
       setTimeout(() => {
-        navigate("/dashboard"); // Redirect to dashboard after verification
-      }, 2000); // Wait for 2 seconds before auto-login
+        navigate("/dashboard");
+      }, 2000);
     }
   };
 
   useEffect(() => {
     let interval;
     if (emailSent) {
-      // Start polling to check email verification
-      interval = setInterval(checkEmailVerification, 5000); // Check every 5 seconds
+      interval = setInterval(checkEmailVerification, 5000);
     }
-    return () => clearInterval(interval); // Cleanup interval on component unmount
+    return () => clearInterval(interval);
   }, [emailSent]);
 
   const submitHandler = async (e) => {
@@ -84,30 +104,34 @@ const Register = () => {
     setLoading(true);
     setErrorMessage(null);
 
+    if (!file) {
+        setErrorMessage("Please select a logo first.");
+        setLoading(false);
+        return;
+    }
+
     try {
+      // 1. Firebase Auth User Create Karein
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      const photoURL = await uploadFileAndGetURL(user);
+      // 2. Cloudinary par image upload karein (Firebase Storage ki jagah)
+      const photoURL = await uploadToCloudinary(user);
 
+      // 3. Firestore mein data save karein
       await saveUserData(user, photoURL);
 
-      // Send verification email
+      // 4. Verification Email bhejein
       await sendEmailVerification(user);
       setEmailSent(true);
 
       setErrorMessage("Verification email sent. Please check your inbox.");
     } catch (error) {
       console.error("Registration failed:", error);
-
       if (error.code === "auth/email-already-in-use") {
-        setErrorMessage("This email is already registered. Please log in or use another email.");
-      } else if (error.code === "auth/weak-password") {
-        setErrorMessage("Password is too weak. Please use a stronger password.");
-      } else if (error.code === "auth/invalid-email") {
-        setErrorMessage("Invalid email address. Please enter a valid email.");
+        setErrorMessage("This email is already registered.");
       } else {
-        setErrorMessage("Registration failed. Please try again later.");
+        setErrorMessage(error.message || "Registration failed. Try again.");
       }
     } finally {
       setLoading(false);
@@ -124,11 +148,8 @@ const Register = () => {
           {errorMessage && <p className="error-message">{errorMessage}</p>}
           {emailSent && !isVerified && (
             <p className="success-message">
-              A verification email has been sent to your email. Please verify your email to proceed.
+              A verification email has been sent. Please verify to proceed.
             </p>
-          )}
-          {isVerified && (
-            <p className="success-message">Verification complete! Logging you in now...</p>
           )}
 
           <form onSubmit={submitHandler}>
@@ -136,7 +157,7 @@ const Register = () => {
               required
               onChange={(e) => setEmail(e.target.value)}
               className="login-input"
-              type="text"
+              type="email"
               placeholder="Email"
             />
             <input
@@ -151,7 +172,7 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="login-input"
               type="password"
-              placeholder="Password (6 characters minimum)"
+              placeholder="Password (6 characters min)"
             />
             <input
               required
@@ -159,6 +180,7 @@ const Register = () => {
               style={{ display: "none" }}
               type="file"
               ref={fileInputRef}
+              accept="image/*"
             />
             <input
               className="login-input"
@@ -166,24 +188,17 @@ const Register = () => {
               value="Select Your Logo"
               onClick={() => fileInputRef.current.click()}
             />
-            {imageUrl && <img src={imageUrl} alt="Preview" className="image-preview" />}
+            {imageUrl && <img src={imageUrl} alt="Preview" className="image-preview" style={{width: '100px', margin: '10px 0'}} />}
             <button
               className="login-input login-btn"
               type="submit"
               disabled={isLoading || emailSent}
             >
-              {isLoading ? <i className="fa fa-circle-notch fa-spin"></i> : "Submit"}
+              {isLoading ? "Processing..." : "Submit"}
             </button>
           </form>
 
-          {isVerified && (
-            <Link to="/dashboard" className="register-link">
-              Go to Dashboard
-            </Link>
-          )}
           <Link to="/login" className="register-link">Log In</Link>
-          <p>OR</p>
-          <Link to="/forgetpass" className="register-link">Forgot Password</Link>
         </div>
       </div>
     </div>
