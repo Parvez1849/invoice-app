@@ -1,7 +1,7 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react"; // useCallback add kiya
 import "./register.css";
 import { Link, useNavigate } from "react-router-dom";
-import { auth, db } from "../../firebase"; // storage ko hata diya kyunki ab zarurat nahi
+import { auth, db } from "../../firebase"; 
 import { createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 
@@ -31,7 +31,6 @@ const Register = () => {
     }
   };
 
-  // --- Naya Cloudinary Upload Function ---
   const uploadToCloudinary = async (user) => {
     if (!file) return null;
 
@@ -51,7 +50,6 @@ const Register = () => {
         throw new Error(data.error?.message || "Upload failed");
       }
 
-      // Firebase Profile update karein naye URL ke saath
       await updateProfile(user, {
         displayName,
         photoURL: data.secure_url,
@@ -78,26 +76,29 @@ const Register = () => {
     localStorage.setItem("uid", user.uid);
   };
 
-  const checkEmailVerification = async () => {
+  // Fixed: Wrapped in useCallback to prevent re-creation and fix dependency warning
+  const checkEmailVerification = useCallback(async () => {
     if (!auth.currentUser) return;
     await auth.currentUser.reload();
     if (auth.currentUser.emailVerified) {
       setIsVerified(true);
-      setErrorMessage("Email verified! You will be logged in automatically.");
+      setErrorMessage("Email verified! Redirecting...");
       
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/dashboard/home"); // Aapke path ke hisaab se adjust karein
       }, 2000);
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     let interval;
-    if (emailSent) {
+    if (emailSent && !isVerified) {
       interval = setInterval(checkEmailVerification, 5000);
     }
-    return () => clearInterval(interval);
-  }, [emailSent]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [emailSent, isVerified, checkEmailVerification]);
 
   const submitHandler = async (e) => {
     e.preventDefault();
@@ -111,20 +112,14 @@ const Register = () => {
     }
 
     try {
-      // 1. Firebase Auth User Create Karein
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Cloudinary par image upload karein (Firebase Storage ki jagah)
       const photoURL = await uploadToCloudinary(user);
-
-      // 3. Firestore mein data save karein
       await saveUserData(user, photoURL);
-
-      // 4. Verification Email bhejein
       await sendEmailVerification(user);
+      
       setEmailSent(true);
-
       setErrorMessage("Verification email sent. Please check your inbox.");
     } catch (error) {
       console.error("Registration failed:", error);
@@ -175,7 +170,6 @@ const Register = () => {
               placeholder="Password (6 characters min)"
             />
             <input
-              required
               onChange={onSelectFile}
               style={{ display: "none" }}
               type="file"
@@ -185,20 +179,21 @@ const Register = () => {
             <input
               className="login-input"
               type="button"
-              value="Select Your Logo"
+              value={file ? "Logo Selected" : "Select Your Logo"}
               onClick={() => fileInputRef.current.click()}
             />
-            {imageUrl && <img src={imageUrl} alt="Preview" className="image-preview" style={{width: '100px', margin: '10px 0'}} />}
+            {imageUrl && <img src={imageUrl} alt="Preview" className="image-preview" style={{width: '100px', margin: '10px 0', borderRadius: '5px'}} />}
+            
             <button
               className="login-input login-btn"
               type="submit"
-              disabled={isLoading || emailSent}
+              disabled={isLoading || (emailSent && !isVerified)}
             >
               {isLoading ? "Processing..." : "Submit"}
             </button>
           </form>
 
-          <Link to="/login" className="register-link">Log In</Link>
+          <Link to="/login" className="register-link">Already have an account? Log In</Link>
         </div>
       </div>
     </div>
