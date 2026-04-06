@@ -1,7 +1,6 @@
-
-import { Chart, registerables } from "chart.js/auto";
+import { Chart } from "chart.js/auto"; // registerables hata diya kyunki ye unused tha
 import { collection, getDocs, query, where } from "firebase/firestore";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react"; // useCallback add kiya
 import { db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import "./home.css";
@@ -10,79 +9,10 @@ const Home = () => {
     const [total, setTotal] = useState(0);
     const [totalMonthCollection, setTotalMonthCollection] = useState(0);
     const [invoices, setInvoices] = useState([]);
-    const [isLoading, setIsLoading] = useState(true); // Loading state
-    const chartRef = useRef(null); // Reference to the chart
+    const chartRef = useRef(null);
     const navigate = useNavigate();
 
-    // Function to fetch data from Firestore
-    const getData = async () => {
-        try {
-            const q = query(collection(db, "invoices"), where("uid", "==", localStorage.getItem("uid")));
-            const querySnapshot = await getDocs(q);
-            const data = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            // Sort the invoices by date (from most recent to oldest)
-            const sortedData = data.sort((a, b) => b.date.seconds - a.date.seconds);
-
-            setInvoices(sortedData);
-            calculateTotals(sortedData);
-        } catch (error) {
-            console.error("Error fetching data: ", error);
-        }
-        finally {
-            setIsLoading(false); // Stop showing the spinner once data is fetched
-        }
-    };
-
-    // Calculate overall total and monthly total
-    const calculateTotals = (invoiceList) => {
-        getOverAllTotal(invoiceList);
-        getOverMonthsTotal(invoiceList);
-        generateMonthWiseCollectionData(invoiceList);
-    };
-
-    // Calculate overall total
-    const getOverAllTotal = (invoiceList) => {
-        const totalAmount = invoiceList.reduce((acc, data) => acc + data.total, 0);
-        setTotal(totalAmount);
-    };
-
-    // Calculate total collection for the current month
-    const getOverMonthsTotal = (invoiceList) => {
-        const currentMonth = new Date().getMonth();
-        const monthlyTotal = invoiceList.reduce((acc, data) => {
-            if (new Date(data.date.seconds * 1000).getMonth() === currentMonth) {
-                return acc + data.total;
-            }
-            return acc;
-        }, 0);
-        setTotalMonthCollection(monthlyTotal);
-    };
-
-    // Generate month-wise data for chart
-    const generateMonthWiseCollectionData = (data) => {
-        const chartData = {
-            "Jan": 0, "Feb": 0, "Mar": 0, "Apr": 0, "May": 0, "Jun": 0,
-            "Jul": 0, "Aug": 0, "Sep": 0, "Oct": 0, "Nov": 0, "Dec": 0
-        };
-
-        data.forEach(d => {
-            const date = new Date(d.date.seconds * 1000);
-            if (date.getFullYear() === new Date().getFullYear()) {
-                const month = date.toLocaleDateString("default", { month: "short" });
-                chartData[month] += d.total;
-            }
-        });
-
-        createChart(chartData);
-    };
-
-    // Create or update chart with new data
-    const createChart = (chartData) => {
-        // Destroy the existing chart if it exists
+    const createChart = useCallback((chartData) => {
         if (chartRef.current) {
             chartRef.current.destroy();
         }
@@ -102,24 +32,76 @@ const Home = () => {
             },
             options: {
                 scales: {
-                    y: {
-                        beginAtZero: true
-                    }
+                    y: { beginAtZero: true }
                 },
                 responsive: true,
                 maintainAspectRatio: false,
             }
         });
+    }, []);
+
+    const generateMonthWiseCollectionData = useCallback((data) => {
+        const chartData = {
+            "Jan": 0, "Feb": 0, "Mar": 0, "Apr": 0, "May": 0, "Jun": 0,
+            "Jul": 0, "Aug": 0, "Sep": 0, "Oct": 0, "Nov": 0, "Dec": 0
+        };
+
+        data.forEach(d => {
+            const date = new Date(d.date.seconds * 1000);
+            if (date.getFullYear() === new Date().getFullYear()) {
+                const month = date.toLocaleDateString("default", { month: "short" });
+                chartData[month] += d.total;
+            }
+        });
+
+        createChart(chartData);
+    }, [createChart]);
+
+    const getOverAllTotal = (invoiceList) => {
+        const totalAmount = invoiceList.reduce((acc, data) => acc + data.total, 0);
+        setTotal(totalAmount);
     };
+
+    const getOverMonthsTotal = (invoiceList) => {
+        const currentMonth = new Date().getMonth();
+        const monthlyTotal = invoiceList.reduce((acc, data) => {
+            if (new Date(data.date.seconds * 1000).getMonth() === currentMonth) {
+                return acc + data.total;
+            }
+            return acc;
+        }, 0);
+        setTotalMonthCollection(monthlyTotal);
+    };
+
+    const calculateTotals = useCallback((invoiceList) => {
+        getOverAllTotal(invoiceList);
+        getOverMonthsTotal(invoiceList);
+        generateMonthWiseCollectionData(invoiceList);
+    }, [generateMonthWiseCollectionData]);
+
+    const getData = useCallback(async () => {
+        try {
+            const q = query(collection(db, "invoices"), where("uid", "==", localStorage.getItem("uid")));
+            const querySnapshot = await getDocs(q);
+            const data = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+
+            const sortedData = data.sort((a, b) => b.date.seconds - a.date.seconds);
+            setInvoices(sortedData);
+            calculateTotals(sortedData);
+        } catch (error) {
+            console.error("Error fetching data: ", error);
+        }
+    }, [calculateTotals]);
 
     useEffect(() => {
         getData();
-    }, []);
+    }, [getData]);
 
     return (
-
         <div>
-             
             <div className="home-first-row">
                 <div className="home-box box-1" onClick={() => navigate("/dashboard/invoices")}>
                     <h1 className="box-header">Rs {total}</h1>
