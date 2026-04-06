@@ -6,10 +6,9 @@ import './invoicedetail.css';
 
 const InvoiceDetail = () => {
     const location = useLocation();
-    const [data, setData] = useState(location.state);
-    const [isLoading, setIsLoading] = useState(true); // Loading state
+    const [data] = useState(location.state); // setData hata diya
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Function to generate PDF
     const printInvoice = () => {
         const input = document.getElementById("invoice");
         html2canvas(input, { useCORS: true })
@@ -26,21 +25,20 @@ const InvoiceDetail = () => {
                 const pdfHeight = (imageProps.height * pdfWidth) / imageProps.width;
 
                 pdf.addImage(imageData, "PNG", 0, 0, pdfWidth, pdfHeight);
-                pdf.save("invoice_" + new Date());
+                pdf.save("invoice_" + new Date().getTime());
             });
     };
 
-    // Simulating loading completion
     useEffect(() => {
         const timer = setTimeout(() => {
-            setIsLoading(false); // Stop loading after some time (simulated)
-        }, 1000); // Adjust time as necessary
-        return () => clearTimeout(timer); // Cleanup timer on unmount
+            setIsLoading(false);
+        }, 1000);
+        return () => clearTimeout(timer);
     }, []);
 
     return (
         <div>
-            {isLoading ? ( // Conditional rendering for spinner
+            {isLoading ? (
                <div style={{ display: "flex", height: "100vh", justifyContent: "center", alignItems: "center" }}>
                <i style={{ fontSize: "24px" }} className="fa-solid fa-spinner fa-spin-pulse"></i> Loading...
              </div>
@@ -84,7 +82,7 @@ const InvoiceDetail = () => {
                             </thead>
                             <tbody>
                                 {data.product.map((product, index) => (
-                                    <tr key={product.id}>
+                                    <tr key={product.id || index}>
                                         <td>{index + 1}</td>
                                         <td>{product.name}</td>
                                         <td>{product.price}</td>
